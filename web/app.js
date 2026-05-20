@@ -1,7 +1,10 @@
-// Versão definitiva - polling direto, sem Web Worker, sem complicações
 (function() {
-    const SERVER_URL = window.location.origin;
+    // URLs definidas no HTML (window.PRIMARY_URL e window.BACKUP_URL)
+    const PRIMARY_URL = window.PRIMARY_URL || `http://${location.hostname}:5000`;
+    const BACKUP_URL = window.BACKUP_URL || `http://${location.hostname}:5001`;
+    let currentServer = PRIMARY_URL;
     let lastId = 0;
+    let pollingInterval = null;
 
     function updateStatus(text, cls) {
         const el = document.getElementById('status');
@@ -18,22 +21,37 @@
         container.scrollTop = container.scrollHeight;
     }
 
+    // Função que tenta uma requisição com fallback para o outro servidor
+    async function fetchWithFailover(url, options) {
+        try {
+            const res = await fetch(url, options);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res;
+        } catch (err) {
+            console.warn(`Falha no servidor ${currentServer}, tentando backup...`);
+            // Troca para o servidor backup
+            currentServer = (currentServer === PRIMARY_URL) ? BACKUP_URL : PRIMARY_URL;
+            updateStatus(`Tentando ${currentServer === PRIMARY_URL ? 'primário' : 'backup'}...`, 'fail');
+            // Tenta novamente com o novo servidor
+            const newUrl = url.replace(/^https?:\/\/[^\/]+/, currentServer);
+            const res = await fetch(newUrl, options);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res;
+        }
+    }
+
     async function poll() {
         try {
-            const url = `${SERVER_URL}/messages?last_id=${lastId}`;
-            const res = await fetch(url);
-            if (res.ok) {
-                const msgs = await res.json();
-                for (const m of msgs) {
-                    if (m.id > lastId) {
-                        lastId = m.id;
-                        appendMessage(m.user, m.msg);
-                    }
+            const url = `${currentServer}/messages?last_id=${lastId}`;
+            const res = await fetchWithFailover(url, { method: 'GET', headers: { 'Accept': 'application/json' } });
+            const msgs = await res.json();
+            for (const m of msgs) {
+                if (m.id > lastId) {
+                    lastId = m.id;
+                    appendMessage(m.user, m.msg);
                 }
-                updateStatus('Conectado', 'conn');
-            } else {
-                throw new Error('HTTP ' + res.status);
             }
+            updateStatus(`Conectado (${currentServer === PRIMARY_URL ? 'primário' : 'backup'})`, 'conn');
         } catch (err) {
             console.error('Poll error:', err);
             updateStatus('Falha na conexão', 'fail');
@@ -45,7 +63,8 @@
         const msg = document.getElementById('message').value.trim();
         if (!msg) return;
         try {
-            const res = await fetch(`${SERVER_URL}/send`, {
+            const url = `${currentServer}/send`;
+            const res = await fetchWithFailover(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user, msg })
@@ -61,10 +80,10 @@
         }
     };
 
-    // Inicia polling quando a página carregar
     window.addEventListener('load', () => {
         updateStatus('Conectando...', '');
         poll();
-        setInterval(poll, 1000);
+        if (pollingInterval) clearInterval(pollingInterval);
+        pollingInterval = setInterval(poll, 1000);
     });
 })();

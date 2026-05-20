@@ -1,0 +1,33 @@
+# render.yaml - Blueprint para o Chat Distribuído com Failover
+# Coloque este arquivo na raiz do seu repositório.
+
+services:
+  # Servidor PRIMÁRIO
+  - type: web
+    name: chat-primario
+    runtime: python
+    repo: https://github.com/JoshuaSRosa/chat_distribuido.git  # ← substitua pelo seu repo
+    plan: free
+    buildCommand: ""
+    startCommand: python server.py
+    healthCheckPath: /health
+    envVars:
+      - key: ROLE
+        value: primary
+      - key: SECONDARY_URL
+        value: https://chat-secundario.onrender.com   # ← nome do serviço secundário
+
+  # Servidor SECUNDÁRIO
+  - type: web
+    name: chat-secundario
+    runtime: python
+    repo: https://github.com/JoshuaSRosa/chat_distribuido.git  # ← mesmo repo
+    plan: free
+    buildCommand: ""
+    startCommand: python server.py
+    healthCheckPath: /health
+    envVars:
+      - key: ROLE
+        value: secondary
+      - key: SECONDARY_URL
+        value: ""   # secundário não replica para ninguém
