@@ -13,7 +13,7 @@ import os
 import sys
 
 # [!] Força o uso de 'WEB' (maiúsculo) como você tem. Se quiser aceitar ambos, pode usar a lógica anterior.
-WEB_DIR = os.path.join(os.path.dirname(__file__), 'WEB')
+WEB_DIR = os.path.join(os.path.dirname(__file__), 'web')
 messages_db = []          # Histórico de mensagens
 connected_clients = []    # [(conn_socket, username), ...]
 db_lock = threading.Lock()
