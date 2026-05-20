@@ -1,8 +1,14 @@
+/*
 const PRIMARY_URL = `http://${location.hostname}:5000`;
 const BACKUP_URL = `http://${location.hostname}:5001`;
 let currentServer = PRIMARY_URL;
 let worker = null;
+*/
+const SERVER_URL = window.location.origin;
+let pollInterval = null;
+let lasted = 0;
 
+/*
 // Inicia o Web Worker de recepção
 function startWorker(url) {
     if (worker) worker.terminate();
@@ -20,6 +26,7 @@ function startWorker(url) {
 
     worker.postMessage({ url: url });
 }
+*/
 
 function updateStatus(text, cls) {
     const el = document.getElementById('status');
@@ -39,6 +46,33 @@ function appendMessage(user, text) {
     container.scrollTop = container.scrollHeight;
 }
 
+// NOVA FUNÇÃO: Polling simples sem Web Worker
+async function pollMessages() {
+    try {
+        const response = await fetch(`${SERVER_URL}/messages?last_id=${lastId}`);
+        
+        if (response.ok) {
+            const messages = await response.json();
+            
+            if (messages && messages.length > 0) {
+                for (const msg of messages) {
+                    if (msg.id > lastId) {
+                        lastId = msg.id;
+                        appendMessage(msg.user, msg.msg);
+                    }
+                }
+            }
+            
+            updateStatus('Conectado ao servidor', 'conn');
+        } else {
+            throw new Error(`HTTP ${response.status}`);
+        }
+    } catch (error) {
+        console.error('Erro no polling:', error);
+        updateStatus('Erro de conexão. Tentando reconectar...', 'fail');
+    }
+}
+
 // ✅ Função GLOBAL (chamada pelo onclick e onkeydown do HTML)
 function sendMessage() {
     const userEl = document.getElementById('username');
@@ -50,7 +84,7 @@ function sendMessage() {
 
     console.log(`📤 Enviando para ${currentServer}: "${message}"`);
 
-    fetch(`${currentServer}/send`, {
+    fetch(`${SERVER_URL}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user: username, msg: message })
@@ -66,12 +100,16 @@ function sendMessage() {
         })
         .catch(err => {
             console.error('❌ Falha ao enviar:', err);
-            if (worker) worker.postMessage({ fail: true });
+            //if (worker) worker.postMessage({ fail: true });
         });
 }
 
 // Inicia ao carregar a página
 window.onload = () => {
-    startWorker(currentServer);
-    updateStatus('Conectado ao servidor primário', 'conn');
+    //startWorker(currentServer);
+    //updateStatus('Conectado ao servidor primário', 'conn');
+    pollMessages();
+    setInterval(pollMessages,1000);
+    updateStatus('Conectandoao servidor...','');
 };
+window.sendMessage = sendMessage;

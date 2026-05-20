@@ -40,10 +40,10 @@ class ChatServer:
         print(f"[{self.role.upper()}] Escutando na porta {self.port}")
 
         # Thread de replicação (background)
-        if self.role == 'primary':
-            threading.Thread(target=self._replicate_to_secondary, daemon=True).start()
-        else:
-            threading.Thread(target=self._listen_for_replication, daemon=True).start()
+        #if self.role == 'primary':
+        #    threading.Thread(target=self._replicate_to_secondary, daemon=True).start()
+        #else:
+        #    threading.Thread(target=self._listen_for_replication, daemon=True).start()
 
         # Loop principal: aceita conexões e cria thread MANUAL para cada uma
         while self.running:
@@ -171,11 +171,11 @@ class ChatServer:
                 next_id += 1
 
                 # 🔁 Replica para o secundário (se for primário e tiver conexão)
-                if self.role == 'primary' and self.sync_conn:
-                    try:
-                        self.sync_conn.sendall(json.dumps(msg_entry).encode() + b'\n')
-                    except:
-                        print("[PRIMARY] Falha ao replicar para secundário")
+                #if self.role == 'primary' and self.sync_conn:
+                #    try:
+                #        self.sync_conn.sendall(json.dumps(msg_entry).encode() + b'\n')
+                #    except:
+                #        print("[PRIMARY] Falha ao replicar para secundário")
 
             # ✅ BROADCAST para TODOS os clientes conectados (funciona em primário E secundário)
             self._broadcast_to_clients(msg_entry)
@@ -206,62 +206,65 @@ class ChatServer:
                 except: pass
             connected_clients[:] = [(c, u) for c, u in connected_clients if c not in dead]
 
-    def _replicate_to_secondary(self):
-        """Primário: mantém conexão TCP com secundário para replicar mensagens"""
-        while self.running:
-            try:
-                if not self.sync_conn:
-                    self.sync_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    self.sync_conn.connect(('127.0.0.1', 5002))
-                    print("[PRIMARY] Conectado ao canal de replicação (:5002)")
-                time.sleep(0.5)
-            except Exception as e:
-                print(f"[PRIMARY] Tentando reconectar ao secundário... ({e})")
-                self.sync_conn = None
-                time.sleep(2)
+    #def _replicate_to_secondary(self):
+    #    """Primário: mantém conexão TCP com secundário para replicar mensagens"""
+    #    while self.running:
+    #        try:
+    #            if not self.sync_conn:
+    #                self.sync_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #                self.sync_conn.connect(('127.0.0.1', 5002))
+    #                print("[PRIMARY] Conectado ao canal de replicação (:5002)")
+    #            time.sleep(0.5)
+    #        except Exception as e:
+    #            print(f"[PRIMARY] Tentando reconectar ao secundário... ({e})")
+    #            self.sync_conn = None
+    #            time.sleep(2)
 
-    def _listen_for_replication(self):
-        """Secundário: escuta porta 5002 para receber réplicas do primário"""
-        sync_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sync_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sync_server.bind(('127.0.0.1', 5002))
-        sync_server.listen(1)
-        print(f"[SECONDARY] Canal de replicação ouvindo na porta 5002")
+    #def _listen_for_replication(self):
+    #    """Secundário: escuta porta 5002 para receber réplicas do primário"""
+    #    sync_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #    sync_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    #    sync_server.bind(('127.0.0.1', 5002))
+    #    sync_server.listen(1)
+    #    print(f"[SECONDARY] Canal de replicação ouvindo na porta 5002")
 
-        global next_id
-        try:
-            self.sync_conn, _ = sync_server.accept()
-            print("[SECONDARY] Primário conectado. Replicação ativa.")
-            while self.running:
-                data = self.sync_conn.recv(4096)
-                if not data:
-                    break
-                # Processa mensagens replicadas (pode vir várias em um recv)
-                for line in data.decode('utf-8').strip().split('\n'):
-                    if line:
-                        try:
-                            msg = json.loads(line)
-                            with db_lock:
-                                # Evita duplicata se já existe pelo ID
-                                if not any(m['id'] == msg['id'] for m in messages_db):
-                                    messages_db.append(msg)
-                                    if msg['id'] >= next_id:
-                                        next_id = msg['id'] + 1
-                        except:
-                            pass
-        except Exception as e:
-            print(f"[SECONDARY] Primário desconectado. MODO ATIVO. ({e})")
-            self.role = 'primary'  # Secundário assume como primário
-        finally:
-            try:
-                self.sync_conn.close()
-                sync_server.close()
-            except:
-                pass
-            # Não para o servidor! Ele continua atendendo clientes como primário agora
+    #    global next_id
+    #    try:
+    #        self.sync_conn, _ = sync_server.accept()
+    #        print("[SECONDARY] Primário conectado. Replicação ativa.")
+    #        while self.running:
+    #            data = self.sync_conn.recv(4096)
+    #            if not data:
+    #                break
+    #            # Processa mensagens replicadas (pode vir várias em um recv)
+    #            for line in data.decode('utf-8').strip().split('\n'):
+    #                if line:
+    #                    try:
+    #                        msg = json.loads(line)
+    #                        with db_lock:
+    #                            # Evita duplicata se já existe pelo ID
+    #                            if not any(m['id'] == msg['id'] for m in messages_db):
+    #                                messages_db.append(msg)
+    #                                if msg['id'] >= next_id:
+    #                                    next_id = msg['id'] + 1
+    #                    except:
+    #                        pass
+    #    except Exception as e:
+    #        print(f"[SECONDARY] Primário desconectado. MODO ATIVO. ({e})")
+    #        self.role = 'primary'  # Secundário assume como primário
+    #    finally:
+    #        try:
+    #            self.sync_conn.close()
+    #            sync_server.close()
+    #        except:
+    #            pass
+    #        # Não para o servidor! Ele continua atendendo clientes como primário agora
 
 if __name__ == '__main__':
-    role = sys.argv[1] if len(sys.argv) > 1 else 'primary'
-    port = 5000 if role == 'primary' else 5001
+    #role = sys.argv[1] if len(sys.argv) > 1 else 'primary'
+    #port = 5000 if role == 'primary' else 5001
+    
+    role = 'primary'
+    port = int(os.environ.get('PORT', 5000))
     print(f"Iniciando servidor {role.upper()} na porta {port}")
     ChatServer(port=port, role=role).start()
