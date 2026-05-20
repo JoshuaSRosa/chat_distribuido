@@ -13,7 +13,7 @@ import os
 import sys
 import urllib.request
 
-WEB_DIR = os.path.join(os.path.dirname(__file__), 'WEB')
+WEB_DIR = os.path.join(os.path.dirname(__file__), 'web')
 messages_db = []
 connected_clients = []
 db_lock = threading.Lock()
