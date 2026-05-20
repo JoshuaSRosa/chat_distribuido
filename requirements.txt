@@ -1,0 +1,2 @@
+# Nenhuma dependência externa necessária.
+# O projeto utiliza exclusivamente a Standard Library do Python (socket, threading, http.server, json).
