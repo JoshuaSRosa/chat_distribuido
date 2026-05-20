@@ -101,12 +101,12 @@ class ChatServer:
             elif 'POST /send' in first_line:
                 body = request.split('\r\n\r\n', 1)[1] if '\r\n\r\n' in request else '{}'
                 self._handle_post_send(conn, body)
-            elif 'GET /' in first_line or 'GET /index.html' in first_line:
-                self._serve_static(conn, '/index.html')
             elif 'GET /app.js' in first_line:
                 self._serve_static(conn, '/app.js')
             elif 'GET /receive_worker.js' in first_line:
                 self._serve_static(conn, '/receive_worker.js')
+            elif 'GET /' in first_line or 'GET /index.html' in first_line:
+                self._serve_static(conn, '/index.html')
             else:
                 self._send_json(conn, 404, {"error": "not found"})
 
