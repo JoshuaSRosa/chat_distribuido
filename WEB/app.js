@@ -73,7 +73,7 @@ async function pollMessages() {
     }
 }
 
-// ✅ Função GLOBAL (chamada pelo onclick e onkeydown do HTML)
+//  Função GLOBAL (chamada pelo onclick e onkeydown do HTML)
 function sendMessage() {
     const userEl = document.getElementById('username');
     const msgEl = document.getElementById('message');
