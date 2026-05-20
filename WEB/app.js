@@ -1,4 +1,4 @@
-// app.js - Versão simplificada para deploy no Render
+// app.js mínimo para teste
 const SERVER_URL = window.location.origin;
 let lastId = 0;
 
@@ -19,53 +19,50 @@ function appendMessage(user, text) {
 
 async function pollMessages() {
     try {
-        const response = await fetch(`${SERVER_URL}/messages?last_id=${lastId}`);
-        if (response.ok) {
-            const messages = await response.json();
-            for (const msg of messages) {
-                if (msg.id > lastId) {
-                    lastId = msg.id;
-                    appendMessage(msg.user, msg.msg);
+        const res = await fetch(`${SERVER_URL}/messages?last_id=${lastId}`);
+        if (res.ok) {
+            const msgs = await res.json();
+            for (const m of msgs) {
+                if (m.id > lastId) {
+                    lastId = m.id;
+                    appendMessage(m.user, m.msg);
                 }
             }
             updateStatus('Conectado', 'conn');
         } else {
-            throw new Error(`HTTP ${response.status}`);
+            throw new Error();
         }
-    } catch (error) {
-        console.error('Polling error:', error);
+    } catch (err) {
         updateStatus('Erro de conexão', 'fail');
     }
 }
 
 async function sendMessage() {
-    const userEl = document.getElementById('username');
-    const msgEl = document.getElementById('message');
-    const username = userEl.value.trim() || 'Visitante';
-    const message = msgEl.value.trim();
-    if (!message) return;
-
+    const user = document.getElementById('username').value.trim() || 'Visitante';
+    const msg = document.getElementById('message').value.trim();
+    if (!msg) return;
     try {
-        const response = await fetch(`${SERVER_URL}/send`, {
+        const res = await fetch(`${SERVER_URL}/send`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user: username, msg: message })
+            body: JSON.stringify({ user, msg })
         });
-        if (response.ok) {
-            msgEl.value = '';
-            msgEl.focus();
+        if (res.ok) {
+            document.getElementById('message').value = '';
         } else {
             throw new Error();
         }
-    } catch (error) {
-        appendMessage('SISTEMA', 'Erro ao enviar mensagem.');
+    } catch (err) {
+        appendMessage('SISTEMA', 'Falha ao enviar mensagem.');
     }
 }
 
+// Inicia o polling quando a página carregar
 window.onload = () => {
     pollMessages();
-    setInterval(pollMessages, 1000); // Polling a cada segundo
+    setInterval(pollMessages, 1000);
     updateStatus('Conectando...', '');
 };
 
+// Torna sendMessage global para o botão
 window.sendMessage = sendMessage;
