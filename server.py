@@ -33,17 +33,68 @@ class ChatServer:
         self.running = True
         self.main_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.main_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.primary_url = os.environ.get('PRIMARY_URL', '')   # para o secundário saber onde está o primário
         # URL do secundário (definida via variável de ambiente)
         self.secondary_url = os.environ.get('SECONDARY_URL', '')
         # Timeout para não travar
         self.main_sock.settimeout(1.0)
 
+#Adições para sincronização e monitoramento entre primário e secundário
+    def _sync_from_secondary(self):
+        #Primário: ao iniciar, recupera mensagens do secundário (se ele estiver ativo)
+        try:
+            # Tenta obter as últimas mensagens do secundário (via HTTP)
+            req = urllib.request.Request(f"{self.secondary_url}/messages")
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                msgs = json.loads(resp.read().decode())
+                with db_lock:
+                    global next_id
+                    for msg in msgs:
+                        if not any(m['id'] == msg['id'] for m in messages_db):
+                            messages_db.append(msg)
+                            if msg['id'] >= next_id:
+                                next_id = msg['id'] + 1
+                print(f"[PRIMARY] Sincronizado {len(msgs)} mensagens do secundário.", flush=True)
+        except Exception as e:
+            print(f"[PRIMARY] Falha ao sincronizar com secundário: {e}", flush=True)
+
+    def _monitor_primary(self):
+        """Thread do secundário: verifica periodicamente se o primário está vivo"""
+        while self.running:
+            time.sleep(10)  # verifica a cada 10 segundos
+            try:
+                req = urllib.request.Request(f"{self.primary_url}/health")
+                with urllib.request.urlopen(req, timeout=3) as resp:
+                    data = json.loads(resp.read().decode())
+                    if data.get('role') == 'primary':
+                        # Primário está vivo. Se este servidor ainda está como primário, volta a ser secundário
+                        if self.role != 'secondary':
+                            print("[SECONDARY] Primário detectado. Voltando a ser SECONDARY.", flush=True)
+                            self.role = 'secondary'
+                            # Não precisa limpar mensagens, apenas para de se considerar ativo para novos envios
+                            # O cliente continuará tentando o primário se fizermos failback.
+            except Exception:
+                # Primário não responde, mantém como está (já está secondary ou primary)
+                pass
+
+    def _become_secondary(self):
+        """Força o servidor a atuar como secundário (usado pelo monitor)"""
+        self.role = 'secondary'
+        # Aqui você pode opcionalmente limpar alguma flag de "ativo" se tiver
     def start(self):
         self.main_sock.bind(('0.0.0.0', self.port))
         self.main_sock.listen(128)
         print(f"[{self.role.upper()}] Escutando na porta {self.port}", flush=True)
         print(f"[{self.role.upper()}] Servindo arquivos de: {WEB_DIR}", flush=True)
         sys.stdout.flush()
+
+        #Verificação para realizar sincronização entre primário e secundário
+        if self.role == 'primary' and self.secondary_url:
+            self._sync_from_secondary()
+        
+        #Se for secundário, inicia thread que verifica se o primário voltou
+        if self.role == 'secondary' and self.primary_url:
+            threading.Thread(target=self._monitor_primary, daemon=True).start()
 
         while self.running:
             try:

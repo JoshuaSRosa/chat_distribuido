@@ -29,5 +29,7 @@ services:
     envVars:
       - key: ROLE
         value: secondary
+      - key: PRIMARY_URL
+        value:https://chat-primario.onrender.com  #nome do serviço primário
       - key: SECONDARY_URL
         value: ""   # secundário não replica para ninguém

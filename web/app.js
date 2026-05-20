@@ -57,6 +57,33 @@
             updateStatus('Falha na conexão', 'fail');
         }
     }
+    
+    //Lógica de failback
+    let failbackInterval = null;
+
+    function tryFailback() {
+        if (currentServer === PRIMARY_URL) return; // já no primário
+        fetch(`${PRIMARY_URL}/health`)
+            .then(res => res.ok ? res.json() : Promise.reject())
+            .then(data => {
+                if (data.status === 'healthy') {
+                    console.log('Primário recuperado, voltando...');
+                    currentServer = PRIMARY_URL;
+                    updateStatus('Conectado (primário)', 'conn');
+                    // Opcional: recarregar mensagens para garantir sincronia
+                    lastId = 0;
+                    poll(); // força uma nova poll
+                }
+            })
+            .catch(() => {});
+    }
+
+    // Inicie o failback quando a página carregar (dentro do load event)
+    window.addEventListener('load', () => {
+        // ... código existente ...
+        if (failbackInterval) clearInterval(failbackInterval);
+        failbackInterval = setInterval(tryFailback, 15000); // tenta a cada 15s
+    });
 
     window.sendMessage = async function() {
         const user = document.getElementById('username').value.trim() || 'Visitante';
