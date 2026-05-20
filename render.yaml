@@ -15,7 +15,7 @@ services:
       - key: ROLE
         value: primary
       - key: SECONDARY_URL
-        value: https://chat-secundario.onrender.com   # ← nome do serviço secundário
+        value: https://chat-secundario-i3u6.onrender.com   # ← nome do serviço secundário
 
   # Servidor SECUNDÁRIO
   - type: web
