@@ -26,7 +26,7 @@ CORS_HEADERS = (
 )
 
 class ChatServer:
-    def __init__(self, port=5000, role='primary'):
+    def __init__(self, port=10000, role='primary'):
         self.port = port
         self.role = role
         self.running = True
