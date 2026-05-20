@@ -11,7 +11,7 @@ import time
 import os
 import sys
 
-WEB_DIR = os.path.join(os.path.dirname(__file__), 'web')
+WEB_DIR = os.path.join(os.path.dirname(__file__), 'WEB')
 messages_db = []          # Histórico de mensagens (compartilhado via replicação)
 connected_clients = []    # [(conn_socket, username), ...] - PARA BROADCAST
 db_lock = threading.Lock()
